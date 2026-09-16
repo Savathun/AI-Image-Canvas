@@ -1,0 +1,31 @@
+{
+  "name": "ctmoai-image-mcp",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "validate": "node scripts/validate-artifact.mjs",
+    "test": "node scripts/test-workbench.mjs",
+    "db:generate": "drizzle-kit generate",
+    "test:ui": "node scripts/test-ui.mjs"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "drizzle-kit": "^0.31.10",
+    "drizzle-orm": "^0.45.2",
+    "esbuild": "^0.28.2",
+    "happy-dom": "^20.14.5",
+    "miniflare": "^5.20260911.1-alpha"
+  },
+  "version": "2.0.0",
+  "dependencies": {
+    "@fontsource-variable/geist": "^5.3.0",
+    "@fontsource-variable/geist-mono": "^5.3.0",
+    "@radix-ui/react-dropdown-menu": "^2.1.24",
+    "@radix-ui/react-popover": "^1.1.23",
+    "lucide": "^1.46.0",
+    "react": "^19.3.0",
+    "react-colorful": "^5.8.1",
+    "react-dom": "^19.3.0"
+  }
+}

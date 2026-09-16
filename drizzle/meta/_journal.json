@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1789461859944,
+      "tag": "0000_lame_famine",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789475410510,
+      "tag": "0001_huge_onslaught",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789479961074,
+      "tag": "0002_previous_lyja",
+      "breakpoints": true
+    }
+  ]
+}

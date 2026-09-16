@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import {driveError} from '../web/drive-errors.js';
+const testToken='test-drive-memory-token';
+const disabled=driveError(403,{error:{message:'API disabled '+testToken,details:[{reason:'SERVICE_DISABLED'}]}},'检查 Drive API',testToken);assert.match(disabled.message,/尚未启用/);assert.ok(!disabled.message.includes(testToken));
+assert.match(driveError(403,{error:{errors:[{reason:'storageQuotaExceeded'}]}},'上传').message,/空间不足/);
+let cb;globalThis.google={accounts:{oauth2:{hasGrantedAllScopes:()=>true,initTokenClient:args=>{cb=args.callback;return{requestAccessToken:()=>cb({access_token:testToken,expires_in:3600})};}}}};globalThis.window={google:globalThis.google,addEventListener(){}};
+const drive=await import('../web/drive.js');const {hash}=await import('../web/storage.js');
+await drive.connect('test.apps.googleusercontent.com');let mode='disabled',puts=0,inits=0,failUpload=false,existing=false,description='',patches=0,listReads=0,downloadReads=0;
+const blob=new Blob(['fixture image bytes'],{type:'image/png'}),digest=await hash(blob),asset={id:'00000000-0000-4000-8000-000000000001',mime:'image/png',sha256:digest,metadata:{prompt:'蓝调海面，柔和月光。\n保持细腻质感。'}};
+globalThis.fetch=async(url,options)=>{assert.equal(options.headers.Authorization,'Bearer '+testToken);const u=new URL(url);if(mode==='disabled')return new Response(JSON.stringify({error:{message:'Google Drive API has not been used in project before or it is disabled.',details:[{reason:'SERVICE_DISABLED'}]}}),{status:403});if(mode==='expired')return new Response(JSON.stringify({error:{message:'Invalid Credentials'}}),{status:401});
+ if(u.pathname==='/drive/v3/files'&&u.searchParams.get('q')?.includes("mimeType = 'image/png'")){listReads++;assert.equal(u.searchParams.get('spaces'),'drive');assert.equal(u.searchParams.get('orderBy'),'modifiedTime desc');return Response.json({files:[{id:'drive-import-file',name:'Drive fixture.png',mimeType:'image/png',size:String(blob.size),modifiedTime:'2026-09-16T00:00:00Z'},{id:'unsupported',name:'vector.svg',mimeType:'image/svg+xml',size:'10'}]});}
+ if(u.pathname==='/drive/v3/files/drive-import-file'&&u.searchParams.get('alt')==='media'){downloadReads++;return new Response(blob);}
+ if(u.pathname==='/drive/v3/files')return Response.json({files:existing?[{id:'fixture-file-id'}]:[]});
+ if(options.method==='PATCH'){patches++;assert.deepEqual(JSON.parse(options.body),{description:asset.metadata.prompt});description=JSON.parse(options.body).description;return Response.json({id:'fixture-file-id',description});}
+ if(options.method==='POST'){inits++;description=JSON.parse(options.body).description||'';assert.equal(description,asset.metadata.prompt);return new Response('',{headers:{Location:'https://www.googleapis.com/upload/drive/v3/files?upload_id=fixture'}});}
+ if(options.method==='PUT'){puts++;if(failUpload)return Response.json({error:{errors:[{reason:'storageQuotaExceeded'}],message:'Quota exceeded'}},{status:403});assert.equal(options.headers['Content-Range'],`bytes 0-${blob.size-1}/${blob.size}`);assert.equal(options.body.size,blob.size);return Response.json({id:'fixture-file-id'});}
+ if(u.searchParams.get('alt')==='media')return new Response(blob);
+ return Response.json({id:'fixture-file-id',description,size:String(blob.size),appProperties:{sha256:digest}});
+};
+await assert.rejects(drive.checkAccess(),e=>e.detail.reason==='SERVICE_DISABLED');assert.match(drive.diagnostic(),/SERVICE_DISABLED/);assert.ok(!drive.diagnostic().includes(testToken));
+mode='ok';await drive.checkAccess();assert.equal(inits,0);const listed=await drive.listImages();assert.deepEqual(listed.map(f=>f.id),['drive-import-file']);assert.equal(listReads,1);const imported=await drive.downloadImage(listed[0]);assert.equal(imported.type,'image/png');assert.equal(imported.size,blob.size);assert.equal(downloadReads,1);await assert.rejects(drive.downloadImage({...listed[0],size:String(21*1024*1024)}),/超过 20 MiB/);const result=await drive.upload(asset,blob);assert.equal(result.id,'fixture-file-id');assert.equal(puts,1);assert.equal(inits,1);assert.equal(result.description,asset.metadata.prompt);assert.equal(patches,0);
+existing=true;description='';const backfill=await drive.upload(asset,blob);assert.equal(backfill.description,asset.metadata.prompt);assert.equal(patches,1);assert.equal(inits,1);description='用户自行填写的说明';await drive.upload(asset,blob);assert.equal(description,'用户自行填写的说明');assert.equal(patches,1);existing=false;
+failUpload=true;puts=0;await assert.rejects(drive.upload({...asset,id:'00000000-0000-4000-8000-000000000002'},blob),e=>e.status===403&&/空间不足/.test(e.message));assert.equal(puts,1,'403 must not be swallowed by an unrelated status retry');
+mode='expired';await assert.rejects(drive.checkAccess(),e=>e.status===401);assert.equal(drive.connected(),false);
+console.log('PASS: Drive list/download import, size guard, disabled API, storage quota and expired token diagnostics; credentials redacted; readonly connection check; fresh upload PUT and content verification; 403 preserved without retry. Simulated Google only.');

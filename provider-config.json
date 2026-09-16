@@ -1,0 +1,46 @@
+{
+  "base_url": "https://video.ctmoai.com",
+  "credential_handling": "User enters key per page session. Forwarded over HTTPS for each explicit request; never persisted in source, files, database, logs or browser storage.",
+  "provider": "靠谱 API / CTMOAI",
+  "verified_models": [
+    "gemini-3.1-flash-image-preview",
+    "gemini-3-pro-image-preview"
+  ],
+  "verified_on": "2026-09-15",
+  "endpoint": "/v1beta/models/{model}:generateContent",
+  "endpoint_base_url": "https://video.ctmoai.com",
+  "model": "gemini-3-pro-image-preview",
+  "defaults": {
+    "image_size": "1K",
+    "aspect_ratio": "1:1"
+  },
+  "parameter_mapping": {
+    "prompt": "contents[0].parts[0].text",
+    "model": "endpoint path",
+    "image_size": "generationConfig.imageConfig.imageSize",
+    "aspect_ratio": "generationConfig.imageConfig.aspectRatio",
+    "reference_image": "contents[0].parts[].inlineData",
+    "reference_images": "contents[0].parts[1..].inlineData (ordered)"
+  },
+  "connection_status": "manual_web_workbench",
+  "api_mode": "synchronous",
+  "generation_route": "/api/generate",
+  "reference_limits": {
+    "max_images": 14,
+    "max_inline_request_bytes": 20000000,
+    "size_accounting": "UTF-8 serialized provider JSON including Base64 and prompt",
+    "sources": [
+      "https://ai.google.dev/gemini-api/docs/image-generation",
+      "https://ai.google.dev/gemini-api/docs/image-understanding"
+    ],
+    "relay_files_api_verified": false,
+    "relay_multi_image_live_tested": false
+  },
+  "reference_preparation": {
+    "mode": "adaptive_browser_copy",
+    "target_inline_request_bytes": 19500000,
+    "preserve_original": true,
+    "format_when_compressed": "image/webp",
+    "min_quality_before_resize": 0.78
+  }
+}

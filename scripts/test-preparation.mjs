@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {prepareReferences,INLINE_TARGET,budgets} from '../web/prepare-references.js';
+import {requestBytes} from '../shared/references.js';
+const ref=n=>({blob:new Blob([new Uint8Array(n)],{type:'image/png'}),asset:{width:2400,height:1600}});
+const read=async b=>'data:'+b.type+';base64,'+Buffer.from(await b.arrayBuffer()).toString('base64');
+let calls=0;const encode=async(blob,target)=>{calls++;return{blob:new Blob([new Uint8Array(target-20)],{type:'image/webp'}),width:2400,height:1600,quality:.9};};
+const small=ref(10000),args={prompt:'以图 1 为主体，使用图 2 的光线。',image_size:'4K',aspect_ratio:'16:9'};
+const single=await prepareReferences(args,[small],{read,encode});assert.equal(calls,0);assert.equal(single.compressed,0);assert.equal(single.images[0],await read(small.blob));
+const refs=[small,...Array.from({length:13},()=>ref(2000000))],originalBlobs=refs.map(r=>r.blob);
+const result=await prepareReferences(args,refs,{read,encode});assert.equal(result.images.length,14);assert.equal(result.compressed,13);assert.equal(result.images[0],await read(small.blob));assert.ok(result.bytes<INLINE_TARGET);assert.ok(result.bytes>INLINE_TARGET-10000);assert.equal(result.bytes,requestBytes(args,result.images));assert.deepEqual(refs.map(r=>r.blob),originalBlobs);assert.ok(result.records.slice(1).every(r=>r.original_bytes===2000000&&r.sent_bytes<2000000));
+let abort=false;await assert.rejects(prepareReferences(args,refs,{read,encode:async(...a)=>{abort=true;return encode(...a);},isCancelled:()=>abort}),/已取消准备/);
+await assert.rejects(prepareReferences(args,refs,{read,encode:async(blob)=>({blob,width:2400,height:1600,quality:1})}),/优化未完成/);
+assert.ok(budgets(refs.map(r=>r.blob),14000000).reduce((a,b)=>a+b,0)<=14000000);
+console.log('PASS: adaptive allocation fits exact provider JSON below target; small originals unchanged; order preserved; copied metadata; cancellation and failed encoder stop before submission. Encoder simulated, no browser or paid requests.');
